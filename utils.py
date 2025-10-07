@@ -12,38 +12,24 @@ from selenium import webdriver
 def chromeBrowserOptions():
     """
     Configura as opções do navegador Chrome para o Selenium
-    Retorna um objeto ChromeOptions configurado
+    VERSÃO DE TESTE - SEM PERFIL
     """
     options = webdriver.ChromeOptions()
     
-    # Argumentos para estabilidade e performance
+    # Argumentos essenciais
     options.add_argument('--no-sandbox')
-    options.add_argument('--ignore-certificate-errors')
-    options.add_argument('--disable-extensions')
-    options.add_argument('--disable-gpu')
     options.add_argument('--disable-dev-shm-usage')
-    
-    # Modo headless (sem interface gráfica)
-    if config.headless:
-        options.add_argument('--headless')
-    
-    # Maximizar janela ao abrir
+    options.add_argument('--disable-gpu')
     options.add_argument('--start-maximized')
+    options.add_argument('--remote-debugging-port=9222')
     
-    # Desabilitar detecção de automação
+    # Desabilitar automação
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_experimental_option('useAutomationExtension', False)
     options.add_experimental_option('excludeSwitches', ['enable-automation'])
     
-    # IMPORTANTE: Carregar perfil do Chrome se configurado
-    if len(config.chromeProfilePath) > 0:
-        prYellow(f"🔧 Carregando perfil do Chrome: {config.chromeProfilePath}")
-        options.add_argument(f'--user-data-dir={config.chromeProfilePath}')
-        options.add_argument(f'--profile-directory={config.chromeProfileName}')
-    else:
-        prYellow("⚠️ ATENÇÃO: Perfil do Chrome não configurado. O bot abrirá em modo anônimo.")
-        prYellow("⚠️ Para usar sem login, configure chromeProfilePath no config.py")
-        options.add_argument('--incognito')
+    prYellow("⚠️ MODO DE TESTE: Rodando SEM perfil (modo anônimo)")
+    prYellow("⚠️ Você precisará fazer login manualmente no LinkedIn")
     
     return options
 

@@ -11,6 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.common.action_chains import ActionChains
 
 # Importar módulos do projeto
 import utils
@@ -143,7 +144,40 @@ class LinkedinBot:
         
         try:
             self.driver.get(constants.linkedinFeedUrl)
-            time.sleep(3)
+            time.sleep(10)  # Aguardar carregar
+            
+            # Verificar se está na página de login
+            current_url = self.driver.current_url
+            
+            if "login" in current_url or "authwall" in current_url:
+                utils.prYellow("\n⚠️  Você NÃO está logado no LinkedIn")
+                utils.prYellow("⚠️  Por favor, faça login AGORA na janela do Chrome que abriu")
+                utils.prYellow("⚠️  Você tem 60 segundos para fazer o login...\n")
+                
+                # Aguardar 180 segundos para o usuário fazer login
+                for i in range(360, 0, -5):
+                    utils.prYellow(f"⏰ Aguardando login... {i} segundos restantes")
+                    time.sleep(5)
+                    
+                    # Verificar se já logou
+                    current_url = self.driver.current_url
+                    if "feed" in current_url or "linkedin.com/feed" in current_url:
+                        utils.prGreen("\n✅ Login detectado com sucesso!")
+                        return True
+                
+                # Verificar uma última vez
+                self.driver.get(constants.linkedinFeedUrl)
+                time.sleep(3)
+                current_url = self.driver.current_url
+                
+                if "login" in current_url or "authwall" in current_url:
+                    return False
+                else:
+                    return True
+            
+            # Já está logado
+            if "feed" in current_url:
+                return True
             
             # Tentar encontrar elementos que só aparecem quando logado
             try:
@@ -152,11 +186,6 @@ class LinkedinBot:
                 return True
             except:
                 pass
-            
-            # Verificar se está na página de login
-            current_url = self.driver.current_url
-            if "login" in current_url or "authwall" in current_url:
-                return False
             
             # Tentar outro método: verificar se existe o botão de "Start a post"
             try:
@@ -171,6 +200,7 @@ class LinkedinBot:
             if config.displayWarnings:
                 utils.prYellow(f"⚠️ Erro ao verificar login: {str(e)}")
             return False
+
     
     def generateUrls(self):
         """
@@ -368,43 +398,89 @@ class LinkedinBot:
         jobLocation = ""
         jobDetails = ""
         
-        # Obter título da vaga
+        # Obter título da vaga (múltiplas tentativas)
         try:
-            jobTitleElement = self.driver.find_element(By.XPATH, "//h1[contains(@class, 'job') or contains(@class, 'title')]")
-            jobTitle = jobTitleElement.text.strip()
+            # Tentativa 1: h1 com classe específica
+            try:
+                jobTitleElement = self.driver.find_element(By.XPATH, "//h1[contains(@class, 'job') or contains(@class, 'title') or contains(@class, 't-24')]")
+                jobTitle = jobTitleElement.text.strip()
+            except:
+                pass
+            
+            # Tentativa 2: Qualquer h1 visível
+            if not jobTitle:
+                try:
+                    h1Elements = self.driver.find_elements(By.TAG_NAME, "h1")
+                    for h1 in h1Elements:
+                        if h1.is_displayed() and len(h1.text.strip()) > 3:
+                            jobTitle = h1.text.strip()
+                            break
+                except:
+                    pass
+            
+            # Tentativa 3: Por classe específica do LinkedIn
+            if not jobTitle:
+                try:
+                    jobTitleElement = self.driver.find_element(By.CSS_SELECTOR, ".jobs-unified-top-card__job-title")
+                    jobTitle = jobTitleElement.text.strip()
+                except:
+                    pass
+            
+            if not jobTitle:
+                jobTitle = "Título não encontrado"
             
             # Verificar blacklist de títulos
             for blacklistedTitle in config.blackListTitles:
                 if blacklistedTitle.lower() in jobTitle.lower():
                     jobTitle += f" (BLACKLISTED: {blacklistedTitle})"
                     break
-        except:
+                    
+        except Exception as e:
+            if config.displayWarnings:
+                utils.prYellow(f"⚠️ Erro ao obter título: {str(e)[:50]}")
             jobTitle = "Título não encontrado"
         
         # Obter detalhes da vaga (empresa, localização, etc)
         try:
             time.sleep(1)
-            jobDetailsElement = self.driver.find_element(By.XPATH, "//div[contains(@class, 'job-details')]")
-            jobDetails = jobDetailsElement.text.replace("\n", " | ")
+            
+            # Procurar detalhes da vaga
+            try:
+                jobDetailsElement = self.driver.find_element(By.CSS_SELECTOR, ".jobs-unified-top-card__primary-description")
+                jobDetails = jobDetailsElement.text.replace("\n", " | ")
+            except:
+                try:
+                    jobDetailsElement = self.driver.find_element(By.XPATH, "//div[contains(@class, 'job-details') or contains(@class, 'jobs-unified')]")
+                    jobDetails = jobDetailsElement.text.replace("\n", " | ")
+                except:
+                    jobDetails = ""
             
             # Verificar blacklist de empresas
             for blacklistedCompany in config.blacklistCompanies:
                 if blacklistedCompany.lower() in jobDetails.lower():
                     jobDetails += f" (BLACKLISTED COMPANY: {blacklistedCompany})"
                     break
-        except:
+                    
+        except Exception as e:
+            if config.displayWarnings:
+                utils.prYellow(f"⚠️ Erro ao obter detalhes: {str(e)[:50]}")
             jobDetails = "Detalhes não encontrados"
         
         # Obter informações de modalidade (remoto, híbrido, presencial)
         try:
-            workModeElements = self.driver.find_elements(By.XPATH, "//span[contains(@class, 'ui-label')]")
+            workModeElements = self.driver.find_elements(By.XPATH, "//span[contains(@class, 'ui-label') or contains(@class, 'workplace-type')]")
             for element in workModeElements:
-                jobLocation += " | " + element.text
+                try:
+                    if element.is_displayed():
+                        jobLocation += " | " + element.text
+                except:
+                    pass
         except:
             pass
         
         textToWrite = f"{count} | {jobTitle} | {jobDetails}{jobLocation}"
         return textToWrite
+
     
     def checkWhitelist(self, jobProperties):
         """
@@ -441,23 +517,60 @@ class LinkedinBot:
         Retorna: 'applied', 'already_applied', ou 'failed'
         """
         try:
+            # Aguardar página carregar
+            time.sleep(random.uniform(2, 3))
+            
             # Verificar se o botão Easy Apply existe
             easyApplyButton = self.findEasyApplyButton()
             
             if easyApplyButton is None:
+                if config.displayWarnings:
+                    utils.prYellow("  ⚠️ Botão Easy Apply não encontrado")
                 return "failed"
             
             if easyApplyButton == "already_applied":
                 return "already_applied"
             
-            # Clicar no botão Easy Apply
-            easyApplyButton.click()
-            time.sleep(random.uniform(1, config.botSpeed))
+            # Tentar clicar no botão Easy Apply de várias formas
+            clicked = False
+            
+            # Método 1: Click normal
+            try:
+                easyApplyButton.click()
+                clicked = True
+            except:
+                pass
+            
+            # Método 2: JavaScript click
+            if not clicked:
+                try:
+                    self.driver.execute_script("arguments[0].click();", easyApplyButton)
+                    clicked = True
+                except:
+                    pass
+            
+            # Método 3: ActionChains
+            if not clicked:
+                try:
+                    from selenium.webdriver.common.action_chains import ActionChains
+                    actions = ActionChains(self.driver)
+                    actions.move_to_element(easyApplyButton).click().perform()
+                    clicked = True
+                except:
+                    pass
+            
+            if not clicked:
+                if config.displayWarnings:
+                    utils.prYellow("  ⚠️ Não foi possível clicar no botão Easy Apply")
+                return "failed"
+            
+            # Aguardar modal abrir
+            time.sleep(random.uniform(2, config.botSpeed))
             
             # Salvar vaga antes de aplicar (se configurado)
             if config.saveBeforeApply:
                 try:
-                    saveButton = self.driver.find_element(By.XPATH, "//button[contains(@aria-label, 'Save')]")
+                    saveButton = self.driver.find_element(By.XPATH, "//button[contains(@aria-label, 'Save') or contains(@aria-label, 'Salvar')]")
                     if "saved" not in saveButton.get_attribute("aria-label").lower():
                         saveButton.click()
                         time.sleep(0.5)
@@ -467,58 +580,171 @@ class LinkedinBot:
             # Tentar aplicação simples (sem etapas adicionais)
             try:
                 self.chooseResume()
-                submitButton = self.driver.find_element(By.CSS_SELECTOR, constants.submitButtonSelector)
-                submitButton.click()
-                time.sleep(random.uniform(1, config.botSpeed))
-                return "applied"
+                time.sleep(1)
+                
+                # Procurar botão de enviar
+                submitButtons = self.driver.find_elements(By.XPATH, "//button[contains(@aria-label, 'Submit application') or contains(@aria-label, 'Enviar candidatura')]")
+                
+                for submitBtn in submitButtons:
+                    if submitBtn.is_displayed() and submitBtn.is_enabled():
+                        try:
+                            submitBtn.click()
+                        except:
+                            self.driver.execute_script("arguments[0].click();", submitBtn)
+                        
+                        time.sleep(random.uniform(1, config.botSpeed))
+                        return "applied"
             
             except:
-                # Aplicação com múltiplas etapas
-                try:
-                    return self.applyMultiStep(offerPage)
-                except:
-                    return "failed"
+                pass
+            
+            # Se não conseguiu aplicação simples, tentar aplicação com múltiplas etapas
+            try:
+                return self.applyMultiStep(offerPage)
+            except Exception as e:
+                if config.displayWarnings:
+                    utils.prYellow(f"  ⚠️ Erro na aplicação: {str(e)[:100]}")
+                return "failed"
         
         except Exception as e:
             if config.displayWarnings:
-                utils.prYellow(f"  ⚠️ Erro ao aplicar: {str(e)}")
+                utils.prYellow(f"  ⚠️ Erro geral ao aplicar: {str(e)[:100]}")
             return "failed"
+
     
     def findEasyApplyButton(self):
         """
-        Procura o botão Easy Apply na página
+        Procura o botão Easy Apply / Candidatura simplificada na página
         Retorna o elemento do botão, 'already_applied', ou None
         """
         try:
-            time.sleep(random.uniform(1, 2))
+            # Aguardar a página carregar completamente
+            time.sleep(random.uniform(2, 3))
             
-            # Verificar se já aplicou
+            # Verificar se já aplicou anteriormente (textos em português e inglês)
             try:
-                appliedText = self.driver.find_element(By.XPATH, "//*[contains(text(), 'Applied') or contains(text(), 'Candidatou-se')]")
-                if appliedText:
-                    return "already_applied"
+                appliedTexts = [
+                    "Applied", "Candidatou-se", "Você já se candidatou",
+                    "Application sent", "Candidatura enviada"
+                ]
+                
+                for text in appliedTexts:
+                    appliedElements = self.driver.find_elements(By.XPATH, f"//*[contains(text(), '{text}')]")
+                    for elem in appliedElements:
+                        try:
+                            if elem.is_displayed():
+                                return "already_applied"
+                        except:
+                            pass
             except:
                 pass
             
-            # Procurar botão Easy Apply
+            # Scroll para garantir que o botão esteja visível
             try:
-                button = self.driver.find_element(By.XPATH, constants.easyApplyButtonXPath)
+                self.driver.execute_script("window.scrollTo(0, 500);")
+                time.sleep(1)
+            except:
+                pass
+            
+            # Procurar botão Easy Apply / Candidatura simplificada com múltiplas estratégias
+            button = None
+            
+            # Lista de textos possíveis do botão (português e inglês)
+            buttonTexts = [
+                "Candidatura simplificada",
+                "Easy Apply",
+                "Candidatar-se",
+                "Apply"
+            ]
+            
+            # Estratégia 1: Procurar por qualquer um dos textos possíveis
+            for buttonText in buttonTexts:
+                try:
+                    buttons = self.driver.find_elements(By.XPATH, f"//button[contains(., '{buttonText}')]")
+                    for btn in buttons:
+                        try:
+                            if btn.is_displayed() and btn.is_enabled():
+                                # Verificar se realmente é o botão de aplicação
+                                btnClass = btn.get_attribute("class") or ""
+                                if "jobs-apply-button" in btnClass or "artdeco-button" in btnClass:
+                                    button = btn
+                                    utils.prGreen(f"  ✅ Botão encontrado: '{buttonText}'")
+                                    break
+                        except:
+                            pass
+                    if button:
+                        break
+                except:
+                    pass
+            
+            # Estratégia 2: Procurar pela classe específica do botão
+            if not button:
+                try:
+                    buttons = self.driver.find_elements(By.CSS_SELECTOR, "button.jobs-apply-button")
+                    for btn in buttons:
+                        try:
+                            if btn.is_displayed() and btn.is_enabled():
+                                button = btn
+                                utils.prGreen(f"  ✅ Botão encontrado pela classe CSS")
+                                break
+                        except:
+                            pass
+                except:
+                    pass
+            
+            # Estratégia 3: Procurar por aria-label
+            if not button:
+                try:
+                    for buttonText in buttonTexts:
+                        buttons = self.driver.find_elements(By.XPATH, f"//button[contains(@aria-label, '{buttonText}')]")
+                        for btn in buttons:
+                            try:
+                                if btn.is_displayed() and btn.is_enabled():
+                                    button = btn
+                                    utils.prGreen(f"  ✅ Botão encontrado por aria-label: '{buttonText}'")
+                                    break
+                            except:
+                                pass
+                        if button:
+                            break
+                except:
+                    pass
+            
+            # Se encontrou o botão, rolar até ele e aguardar
+            if button:
+                try:
+                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+                    time.sleep(1)
+                except:
+                    pass
                 return button
-            except:
-                pass
             
-            # Tentar outro seletor
-            try:
-                button = self.driver.find_element(By.XPATH, "//button[contains(., 'Easy Apply') or contains(., 'Candidatura simples')]")
-                return button
-            except:
-                pass
+            # Se não encontrou, tentar procurar o texto exato na imagem que você mandou
+            if not button:
+                try:
+                    # Procurar especificamente pelo texto "Candidatura simplificada" com ícone
+                    buttons = self.driver.find_elements(By.XPATH, "//button[contains(@class, 'jobs-apply-button') or contains(@class, 'artdeco-button--primary')]")
+                    for btn in buttons:
+                        try:
+                            btnText = btn.text.strip()
+                            if any(text in btnText for text in buttonTexts):
+                                if btn.is_displayed() and btn.is_enabled():
+                                    button = btn
+                                    utils.prGreen(f"  ✅ Botão encontrado pelo texto: '{btnText}'")
+                                    break
+                        except:
+                            pass
+                except:
+                    pass
             
+            return button if button else None
+            
+        except Exception as e:
+            if config.displayWarnings:
+                utils.prYellow(f"⚠️ Erro ao procurar botão: {str(e)}")
             return None
-            
-        except:
-            return None
-    
+
+        
     def chooseResume(self):
         """
         Seleciona o currículo preferido (se necessário)
