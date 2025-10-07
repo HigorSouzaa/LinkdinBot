@@ -1,19 +1,37 @@
-# linkedin.py - Script principal do bot de aplicação no LinkedIn
-# Este é o arquivo principal que você vai executar
+# -*- coding: utf-8 -*-
+"""
+LinkedIn Easy Apply Bot
+Versão: 1.0.0
+"""
 
+import sys
+import os
+
+# Forçar UTF-8 no Windows para suportar emojis
+if sys.platform == "win32":
+    try:
+        # Mudar codepage do console para UTF-8
+        os.system("chcp 65001 > nul 2>&1")
+        # Reconfigurar stdout e stderr
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except:
+        pass
+
+# Imports principais
 import time
 import math
 import random
-import os
-import sys
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from selenium.webdriver.common.action_chains import ActionChains
 
-# Importar módulos do projeto
+# Imports do projeto
 import utils
 import constants
 import config
@@ -44,6 +62,7 @@ class LinkedinBot:
         utils.prBlue(f"Versão: {constants.version}")
         utils.prBlue("=" * 60)
         utils.prYellow(constants.welcomeMessage)
+        
         
         # Verificar se o perfil do navegador está configurado
         self.checkProfileConfiguration()
@@ -203,190 +222,119 @@ class LinkedinBot:
 
     
     def generateUrls(self):
-        """
-        Gera as URLs de busca baseadas nas configurações
-        e salva em um arquivo data/urlData.txt
-        """
+        """Gera as URLs de busca baseadas nas configurações e salva em um arquivo data/urlData.txt"""
         utils.prYellow("🔗 Gerando URLs de busca...")
         
         # Criar pasta data se não existir
-        if not os.path.exists('data'):
-            os.makedirs('data')
-            utils.prGreen("✅ Pasta 'data' criada")
+        if not os.path.exists("data"):
+            os.makedirs("data")
+            utils.prGreen("📁 Pasta data criada")
         
         try:
-            urls = utils.LinkedinUrlGenerate().generateUrlLinks()
+            # Criar instância do gerador de URLs
+            url_generator = utils.LinkedinUrlGenerate()
+            urls = url_generator.generateUrls()
             
-            with open('data/urlData.txt', 'w', encoding='utf-8') as file:
+            # Salvar URLs no arquivo
+            with open("data/urlData.txt", "w", encoding="utf-8") as file:
                 for url in urls:
                     file.write(url + "\n")
             
             utils.prGreen(f"✅ {len(urls)} URLs de busca criadas com sucesso!")
-            utils.prYellow(f"📊 Combinações: {len(config.location)} localizações × {len(config.keywords)} palavras-chave")
+            utils.prYellow(f"📍 Combinações: {len(config.location)} localizações × {len(config.keywords)} palavras-chave")
             
         except Exception as e:
             utils.prRed(f"❌ Erro ao gerar URLs: {str(e)}")
             utils.prRed("❌ Verifique as configurações no config.py (linhas de location e keywords)")
             sys.exit(1)
+
     
-    def startApplying(self):
-        """
-        Inicia o processo de aplicação nas vagas
-        """
-        # Gerar URLs de busca
-        self.generateUrls()
-        
-        # Contadores
-        countApplied = 0
-        countJobs = 0
-        countSkipped = 0
-        
-        # Ler URLs geradas
-        urlData = utils.getUrlDataFile()
-        
-        if not urlData:
-            utils.prRed("❌ Nenhuma URL encontrada para processar")
-            self.driver.quit()
-            sys.exit(1)
-        
-        utils.prBlue("\n" + "=" * 60)
+    def start(self):
+        """Inicia o processo de aplicação automática"""
+        utils.prBlue("\n" + "="*60)
         utils.prBlue("🚀 INICIANDO PROCESSO DE CANDIDATURAS")
-        utils.prBlue("=" * 60 + "\n")
+        utils.prBlue("="*60 + "\n")
         
-        # Processar cada URL de busca
-        for urlIndex, url in enumerate(urlData, 1):
-            utils.prYellow(f"\n📍 Processando busca {urlIndex}/{len(urlData)}")
+        # Ler URLs do arquivo
+        urlData = []
+        try:
+            with open(utils.getUrlDataFile(), 'r', encoding='utf-8') as file:
+                urlData = [line.strip() for line in file.readlines() if line.strip()]
+            
+            if not urlData:
+                utils.prRed("❌ Nenhuma URL encontrada no arquivo!")
+                return
+            
+            utils.prYellow(f"📍 Total de URLs para processar: {len(urlData)}\n")
+            
+        except FileNotFoundError:
+            utils.prRed(f"❌ Arquivo {utils.getUrlDataFile()} não encontrado!")
+            return
+        except Exception as e:
+            utils.prRed(f"❌ Erro ao ler arquivo de URLs: {str(e)}")
+            return
+        
+        # PROCESSAR CADA URL (NÃO MULTIPLICAR!)
+        for urlIndex, url in enumerate(urlData):
+            utils.prYellow(f"\n📍 Processando URL {urlIndex + 1}/{len(urlData)}")
+            
+            # VALIDAR SE É UMA URL VÁLIDA
+            if not url or not url.startswith('http'):
+                utils.prRed(f"❌ URL inválida pulada: {url[:100] if url else 'vazio'}")
+                continue
+            
+            utils.prCyan(f"🔗 URL: {url}")
             
             try:
+                # Navegar para a URL
                 self.driver.get(url)
-                time.sleep(random.uniform(2, config.botSpeed))
+                time.sleep(random.uniform(3, 5))
                 
-                # Obter número total de vagas
-                try:
-                    totalJobsElement = self.driver.find_element(By.XPATH, constants.totalJobsSelector)
-                    totalJobsText = totalJobsElement.text
-                    totalPages = utils.jobsToPages(totalJobsText)
-                    
-                    utils.prGreen(f"✅ Encontradas {totalJobsText} vagas")
-                    utils.prYellow(f"📄 Processando {totalPages} páginas...")
-                except:
-                    utils.prYellow("⚠️ Não foi possível obter o número total de vagas")
-                    totalPages = 1
-                
-                # Obter palavras-chave da URL
-                urlWords = utils.urlToKeywords(url)
-                lineToWrite = f"\n Categoria: {urlWords[0]}, Localização: {urlWords[1]}, Total: {totalJobsText if 'totalJobsText' in locals() else 'Desconhecido'}"
-                self.displayWriteResults(lineToWrite)
-                
-                # Processar cada página de resultados
-                for page in range(totalPages):
-                    currentPageJobs = constants.jobsPerPage * page
-                    pageUrl = url + "&start=" + str(currentPageJobs)
-                    
-                    self.driver.get(pageUrl)
-                    time.sleep(random.uniform(1, config.botSpeed))
-                    
-                    utils.prYellow(f"  📄 Página {page + 1}/{totalPages}")
-                    
-                    # Obter lista de vagas na página
-                    try:
-                        offersPerPage = self.driver.find_elements(By.XPATH, constants.offersPerPageSelector)
-                        offerIds = []
-                        
-                        for offer in offersPerPage:
-                            offerId = offer.get_attribute("data-occludable-job-id")
-                            if offerId:
-                                jobId = offerId.split(":")[-1]
-                                offerIds.append(jobId)
-                        
-                        utils.prGreen(f"  ✅ {len(offerIds)} vagas encontradas nesta página")
-                        
-                    except Exception as e:
-                        if config.displayWarnings:
-                            utils.prYellow(f"  ⚠️ Erro ao obter vagas da página: {str(e)}")
-                        continue
-                    
-                    # Processar cada vaga
-                    for jobId in offerIds:
-                        # Verificar limite de candidaturas
-                        if config.maxApplications > 0 and countApplied >= config.maxApplications:
-                            utils.prYellow(f"\n⚠️ Limite de {config.maxApplications} candidaturas atingido!")
-                            break
-                        
-                        offerPage = f'https://www.linkedin.com/jobs/view/{jobId}'
-                        
-                        try:
-                            self.driver.get(offerPage)
-                            time.sleep(random.uniform(1, config.botSpeed))
-                            
-                            countJobs += 1
-                            
-                            # Obter informações da vaga
-                            jobProperties = self.getJobProperties(countJobs)
-                            
-                            # Verificar blacklist
-                            if "blacklisted" in jobProperties.lower():
-                                lineToWrite = f"{jobProperties} | * 🚫 Vaga ignorada (blacklist): {offerPage}"
-                                self.displayWriteResults(lineToWrite)
-                                countSkipped += 1
-                                continue
-                            
-                            # Verificar whitelist (se configurado)
-                            if config.onlyApplyCompanies or config.onlyApplyTitles:
-                                if not self.checkWhitelist(jobProperties):
-                                    lineToWrite = f"{jobProperties} | * ⏭️ Vaga ignorada (não está na whitelist): {offerPage}"
-                                    self.displayWriteResults(lineToWrite)
-                                    countSkipped += 1
-                                    continue
-                            
-                            # Tentar aplicar para a vaga
-                            result = self.applyToJob(offerPage)
-                            
-                            if result == "applied":
-                                lineToWrite = f"{jobProperties} | * 🥳 Candidatura enviada com sucesso!: {offerPage}"
-                                countApplied += 1
-                            elif result == "already_applied":
-                                lineToWrite = f"{jobProperties} | * ✅ Já aplicado anteriormente: {offerPage}"
-                            else:
-                                lineToWrite = f"{jobProperties} | * ⚠️ Não foi possível aplicar: {offerPage}"
-                                countSkipped += 1
-                            
-                            self.displayWriteResults(lineToWrite)
-                            
-                        except Exception as e:
-                            if config.displayWarnings:
-                                utils.prRed(f"  ❌ Erro ao processar vaga {jobId}: {str(e)}")
-                            countSkipped += 1
-                            continue
-                    
-                    # Verificar se atingiu o limite
-                    if config.maxApplications > 0 and countApplied >= config.maxApplications:
-                        break
-                
-                # Resumo da busca atual
-                utils.prBlue(f"\n📊 Resumo da busca: {urlWords[0]}, {urlWords[1]}")
-                utils.prGreen(f"  ✅ Candidaturas enviadas: {countApplied}")
-                utils.prYellow(f"  ⏭️ Vagas ignoradas: {countSkipped}")
-                utils.prBlue(f"  📋 Total processado: {countJobs}")
+                # PROCESSAR VAGAS DESTA URL
+                self.processJobListings()
                 
             except Exception as e:
                 utils.prRed(f"❌ Erro ao processar URL: {str(e)}")
                 continue
         
         # Resumo final
-        utils.prBlue("\n" + "=" * 60)
-        utils.prBlue("📊 RESUMO FINAL")
-        utils.prBlue("=" * 60)
-        utils.prGreen(f"✅ Total de candidaturas enviadas: {countApplied}")
-        utils.prYellow(f"⏭️ Total de vagas ignoradas: {countSkipped}")
-        utils.prBlue(f"📋 Total de vagas processadas: {countJobs}")
-        utils.prBlue("=" * 60 + "\n")
-        
-        utils.prGreen(constants.doneMessage)
-        
-        # Fechar navegador
-        time.sleep(3)
-        self.driver.quit()
+        self.finish()
+
+    def processJobListings(self):
+        """Processa todas as vagas da página atual"""
+        try:
+            # Aguardar carregamento das vagas
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".jobs-search__results-list"))
+            )
+            
+            # Encontrar todas as vagas
+            job_listings = self.driver.find_elements(By.CSS_SELECTOR, "li.jobs-search-results__list-item")
+            
+            utils.prGreen(f"✅ Encontradas {len(job_listings)} vagas nesta busca")
+            
+            for index, job in enumerate(job_listings, 1):
+                try:
+                    # Rolar até a vaga
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", job)
+                    time.sleep(1)
+                    
+                    # Clicar na vaga
+                    job.click()
+                    time.sleep(random.uniform(2, 3))
+                    
+                    # Tentar aplicar
+                    self.easyApply()
+                    
+                except Exception as e:
+                    utils.prRed(f"❌ Erro na vaga {index}: {str(e)}")
+                    continue
+            
+        except TimeoutException:
+            utils.prRed("❌ Timeout ao carregar vagas")
+        except Exception as e:
+            utils.prRed(f"❌ Erro ao processar vagas: {str(e)}")
+
 
     def getJobProperties(self, count):
         """
@@ -779,68 +727,319 @@ class LinkedinBot:
     
     def applyMultiStep(self, offerPage):
         """
-        Aplica para vagas com múltiplas etapas
+        Aplica para vagas com múltiplas etapas e perguntas adicionais
         Retorna 'applied' ou 'failed'
         """
         try:
-            # Clicar em continuar
-            continueButton = self.driver.find_element(By.CSS_SELECTOR, constants.continueButtonSelector)
-            continueButton.click()
-            time.sleep(random.uniform(1, config.botSpeed))
+            utils.prYellow("  📝 Processando candidatura com múltiplas etapas...")
             
-            self.chooseResume()
+            maxSteps = 10  # Máximo de etapas para evitar loop infinito
+            currentStep = 0
             
-            # Obter percentual de completude
-            try:
-                percentageElement = self.driver.find_element(By.XPATH, "//span[contains(text(), '%')]")
-                percentageText = percentageElement.text
-                percentage = int(percentageText.replace("%", ""))
-            except:
-                percentage = 0
-            
-            # Calcular número de páginas
-            if percentage > 0:
-                applyPages = math.floor(100 / percentage) - 2
-            else:
-                applyPages = 1
-            
-            # Navegar pelas páginas
-            for _ in range(applyPages):
+            while currentStep < maxSteps:
+                currentStep += 1
+                time.sleep(random.uniform(1, 2))
+                
+                # Verificar se chegou na tela de revisão final
                 try:
-                    continueButton = self.driver.find_element(By.CSS_SELECTOR, constants.continueButtonSelector)
-                    continueButton.click()
-                    time.sleep(random.uniform(1, config.botSpeed))
-                except:
-                    break
-            
-            # Revisar aplicação
-            try:
-                reviewButton = self.driver.find_element(By.CSS_SELECTOR, constants.reviewButtonSelector)
-                reviewButton.click()
-                time.sleep(random.uniform(1, config.botSpeed))
-            except:
-                pass
-            
-            # Desmarcar opção de seguir empresa (se configurado)
-            if not config.followCompanies:
-                try:
-                    followCheckbox = self.driver.find_element(By.CSS_SELECTOR, constants.followCompanyCheckboxSelector)
-                    followCheckbox.click()
-                    time.sleep(0.5)
+                    reviewButtons = self.driver.find_elements(By.XPATH, 
+                        "//button[contains(@aria-label, 'Rever') or contains(@aria-label, 'Review') or contains(., 'Rever sua candidatura') or contains(., 'Review your application')]")
+                    
+                    for btn in reviewButtons:
+                        if btn.is_displayed() and btn.is_enabled():
+                            utils.prGreen(f"  ✅ Chegou na revisão final (etapa {currentStep})")
+                            
+                            try:
+                                btn.click()
+                            except:
+                                self.driver.execute_script("arguments[0].click();", btn)
+                            
+                            time.sleep(2)
+                            
+                            # Desmarcar "seguir empresa" se configurado
+                            if not config.followCompanies:
+                                try:
+                                    followCheckboxes = self.driver.find_elements(By.XPATH, 
+                                        "//label[contains(@for, 'follow-company')]")
+                                    for checkbox in followCheckboxes:
+                                        if checkbox.is_displayed():
+                                            checkbox.click()
+                                            time.sleep(0.5)
+                                except:
+                                    pass
+                            
+                            # Enviar candidatura final
+                            return self.submitFinalApplication()
                 except:
                     pass
+                
+                # Verificar se já foi enviada (às vezes aparece mensagem de sucesso)
+                try:
+                    successTexts = ["enviada", "sent", "submetida", "submitted"]
+                    for text in successTexts:
+                        elements = self.driver.find_elements(By.XPATH, f"//*[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{text}')]")
+                        for elem in elements:
+                            if elem.is_displayed() and ("candidatura" in elem.text.lower() or "application" in elem.text.lower()):
+                                utils.prGreen("  ✅ Candidatura enviada com sucesso!")
+                                return "applied"
+                except:
+                    pass
+                
+                # Escolher currículo se necessário
+                self.chooseResume()
+                time.sleep(1)
+                
+                # Tentar preencher perguntas automáticas
+                self.answerQuestions()
+                time.sleep(1)
+                
+                # Procurar botão "Avançar" / "Continue" / "Próximo"
+                continueButton = None
+                continueTexts = [
+                    "Avançar",
+                    "Próximo",
+                    "Continue",
+                    "Next",
+                    "Continuar"
+                ]
+                
+                for btnText in continueTexts:
+                    try:
+                        buttons = self.driver.find_elements(By.XPATH, f"//button[contains(., '{btnText}')]")
+                        for btn in buttons:
+                            if btn.is_displayed() and btn.is_enabled():
+                                btnAriaLabel = btn.get_attribute("aria-label") or ""
+                                if "next step" in btnAriaLabel.lower() or "próxima etapa" in btnAriaLabel.lower() or len(btnAriaLabel) == 0:
+                                    continueButton = btn
+                                    break
+                        if continueButton:
+                            break
+                    except:
+                        pass
+                
+                # Se encontrou botão de continuar, clicar
+                if continueButton:
+                    try:
+                        utils.prYellow(f"  ⏩ Avançando para próxima etapa ({currentStep}/{maxSteps})")
+                        continueButton.click()
+                    except:
+                        self.driver.execute_script("arguments[0].click();", continueButton)
+                    
+                    time.sleep(random.uniform(1, 2))
+                    continue
+                
+                # Se não encontrou botão de continuar, tentar enviar diretamente
+                submitResult = self.submitFinalApplication()
+                if submitResult == "applied":
+                    return "applied"
+                
+                # Se chegou aqui e não conseguiu avançar, pode estar travado
+                utils.prYellow(f"  ⚠️ Não encontrou botão para avançar na etapa {currentStep}")
+                
+                # Última tentativa: procurar qualquer botão primário
+                try:
+                    primaryButtons = self.driver.find_elements(By.CSS_SELECTOR, "button.artdeco-button--primary")
+                    for btn in primaryButtons:
+                        if btn.is_displayed() and btn.is_enabled():
+                            btnText = btn.text.strip()
+                            if len(btnText) > 0 and btnText.lower() not in ["fechar", "close", "cancelar", "cancel"]:
+                                utils.prYellow(f"  🔄 Tentando clicar em: '{btnText}'")
+                                try:
+                                    btn.click()
+                                except:
+                                    self.driver.execute_script("arguments[0].click();", btn)
+                                time.sleep(2)
+                                break
+                except:
+                    pass
+                
+                # Se passou de 5 etapas sem sucesso, desistir
+                if currentStep >= 5:
+                    utils.prYellow(f"  ⚠️ Muitas etapas ({currentStep}), pulando esta vaga")
+                    break
             
-            # Enviar candidatura
-            submitButton = self.driver.find_element(By.CSS_SELECTOR, constants.submitButtonSelector)
-            submitButton.click()
-            time.sleep(random.uniform(1, config.botSpeed))
-            
-            return "applied"
+            return "failed"
             
         except Exception as e:
             if config.displayWarnings:
-                utils.prYellow(f"  ⚠️ Erro na aplicação multi-step: {str(e)}")
+                utils.prYellow(f"  ⚠️ Erro na aplicação multi-step: {str(e)[:150]}")
             return "failed"
+
+
+    def answerQuestions(self):
+        """
+        Tenta responder perguntas automáticas do formulário usando dados do config
+        """
+        try:
+            if not config.autoFillEnabled:
+                return
+            
+            # Procurar campos de texto vazios e preencher com valores do config
+            textInputs = self.driver.find_elements(By.XPATH, "//input[@type='text' or @type='number']")
+            for inp in textInputs:
+                try:
+                    if inp.is_displayed() and inp.is_enabled():
+                        currentValue = inp.get_attribute("value") or ""
+                        if len(currentValue.strip()) == 0:
+                            # Verificar o label para saber o que preencher
+                            inputId = inp.get_attribute("id") or ""
+                            placeholder = inp.get_attribute("placeholder") or ""
+                            labelText = ""
+                            
+                            if inputId:
+                                try:
+                                    label = self.driver.find_element(By.XPATH, f"//label[@for='{inputId}']")
+                                    labelText = label.text.lower()
+                                except:
+                                    pass
+                            
+                            # Combinar label e placeholder para melhor detecção
+                            fullText = (labelText + " " + placeholder.lower()).strip()
+                            
+                            # Preencher baseado no tipo de pergunta usando dados do config
+                            filled = False
+                            
+                            # Anos de experiência
+                            if any(word in fullText for word in ["anos", "years", "experiência", "experience", "tempo"]):
+                                inp.send_keys(config.personalInfo["yearsOfExperience"])
+                                filled = True
+                            
+                            # Salário
+                            elif any(word in fullText for word in ["salário", "salary", "pretensão", "remuneração", "compensação"]):
+                                inp.send_keys(config.personalInfo["salaryExpectation"])
+                                filled = True
+                            
+                            # Salário por hora
+                            elif any(word in fullText for word in ["hora", "hour", "hourly"]):
+                                inp.send_keys(config.personalInfo["hourlyRate"])
+                                filled = True
+                            
+                            # Telefone
+                            elif any(word in fullText for word in ["telefone", "phone", "celular", "contato", "whatsapp"]):
+                                inp.send_keys(config.personalInfo["phone"])
+                                filled = True
+                            
+                            # Cidade
+                            elif any(word in fullText for word in ["cidade", "city", "localização", "location"]):
+                                inp.send_keys(config.personalInfo["city"])
+                                filled = True
+                            
+                            # País
+                            elif any(word in fullText for word in ["país", "country", "nacionalidade"]):
+                                inp.send_keys(config.personalInfo["country"])
+                                filled = True
+                            
+                            # Disponibilidade
+                            elif any(word in fullText for word in ["disponibilidade", "availability", "início", "start"]):
+                                inp.send_keys(config.personalInfo["availability"])
+                                filled = True
+                            
+                            # LinkedIn
+                            elif any(word in fullText for word in ["linkedin", "perfil"]):
+                                if config.personalInfo["linkedinUrl"]:
+                                    inp.send_keys(config.personalInfo["linkedinUrl"])
+                                    filled = True
+                            
+                            # Portfolio/GitHub
+                            elif any(word in fullText for word in ["portfolio", "github", "site", "website"]):
+                                if config.personalInfo["portfolioUrl"]:
+                                    inp.send_keys(config.personalInfo["portfolioUrl"])
+                                    filled = True
+                            
+                            # Idiomas
+                            elif any(word in fullText for word in ["idioma", "língua", "language", "inglês", "english"]):
+                                inp.send_keys(config.personalInfo["englishLevel"])
+                                filled = True
+                            
+                            if filled:
+                                time.sleep(0.3)
+                                
+                except:
+                    pass
+            
+            # Selecionar primeira opção em dropdowns (se habilitado)
+            if config.autoSelectFirstOption:
+                try:
+                    selects = self.driver.find_elements(By.TAG_NAME, "select")
+                    for select in selects:
+                        if select.is_displayed():
+                            try:
+                                options = select.find_elements(By.TAG_NAME, "option")
+                                if len(options) > 1:  # Se tem opções além da padrão
+                                    options[1].click()  # Selecionar segunda opção (primeira real)
+                                    time.sleep(0.5)
+                            except:
+                                pass
+                except:
+                    pass
+            
+            # Marcar checkboxes de "Sim" se habilitado
+            if config.autoSelectYes:
+                try:
+                    # Procurar por radio buttons com "Sim" ou "Yes"
+                    yesRadios = self.driver.find_elements(By.XPATH, 
+                        "//input[@type='radio' and (contains(@value, 'Yes') or contains(@value, 'Sim') or contains(@value, 'yes') or contains(@value, 'sim') or @value='1' or @value='true')]")
+                    for radio in yesRadios:
+                        try:
+                            if radio.is_displayed() and not radio.is_selected():
+                                # Verificar se o label contém "sim" ou "yes"
+                                radioId = radio.get_attribute("id") or ""
+                                if radioId:
+                                    try:
+                                        label = self.driver.find_element(By.XPATH, f"//label[@for='{radioId}']")
+                                        labelText = label.text.lower()
+                                        if "sim" in labelText or "yes" in labelText:
+                                            radio.click()
+                                            time.sleep(0.3)
+                                    except:
+                                        pass
+                        except:
+                            pass
+                except:
+                    pass
+            
+        except Exception as e:
+            if config.displayWarnings:
+                utils.prYellow(f"  ⚠️ Erro ao responder perguntas: {str(e)[:100]}")
+
+
+
+    def submitFinalApplication(self):
+        """
+        Envia a candidatura final
+        """
+        try:
+            # Procurar botão de enviar final
+            submitTexts = [
+                "Enviar candidatura",
+                "Submit application",
+                "Enviar",
+                "Submit",
+                "Candidatar"
+            ]
+            
+            for submitText in submitTexts:
+                try:
+                    buttons = self.driver.find_elements(By.XPATH, f"//button[contains(., '{submitText}') or contains(@aria-label, '{submitText}')]")
+                    for btn in buttons:
+                        if btn.is_displayed() and btn.is_enabled():
+                            utils.prGreen(f"  📤 Enviando candidatura...")
+                            try:
+                                btn.click()
+                            except:
+                                self.driver.execute_script("arguments[0].click();", btn)
+                            
+                            time.sleep(random.uniform(2, 3))
+                            utils.prGreen("  ✅ Candidatura enviada!")
+                            return "applied"
+                except:
+                    pass
+            
+            return "failed"
+            
+        except:
+            return "failed"
+
     
     def displayWriteResults(self, lineToWrite: str):
         """
