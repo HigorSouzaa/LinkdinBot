@@ -1,7 +1,8 @@
 chrome_selenium_profile
-
 chrome_temp
-
-data
-
-__pycache__
+selenium_profile/
+data/
+__pycache__/
+*.pyc
+*.log
+Applied_Jobs_*.txt

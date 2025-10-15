@@ -1,118 +1,116 @@
-# Bot de Aplicação Automática no LinkedIn - Versão Sem Login
+# Bot de Aplicação Automática no LinkedIn
 
-Bot em Python para aplicar automaticamente em vagas do LinkedIn usando o recurso "Easy Apply", **sem necessidade de inserir credenciais no código**.
+Bot em Python para aplicar automaticamente em vagas do LinkedIn usando o recurso "Easy Apply", com **perfil isolado do Selenium**.
 
-## 🔒 Segurança
+## 🔒 Segurança e Privacidade
 
-Este bot utiliza o **perfil do seu navegador** para manter a sessão logada, evitando que você precise inserir email e senha no código. Isso garante mais segurança e praticidade.
+Este bot utiliza um **perfil isolado do Selenium** criado na pasta `selenium_profile/` do projeto. Seu perfil pessoal do Chrome **NÃO é afetado**. Na primeira execução, você precisará fazer login no LinkedIn, e esse login ficará salvo no perfil isolado para as próximas execuções.
 
 ## 📋 Pré-requisitos
 
 - Python 3.8 ou superior
-- Google Chrome ou Mozilla Firefox instalado
+- Google Chrome instalado
 - Conta no LinkedIn com pelo menos um currículo anexado
 
 ## 🚀 Instalação
 
-### 1. Clone ou baixe o projeto
+### 1. Clone o projeto
 
+```bash
 git clone [seu-repositorio]
-cd linkedin-bot
-
+cd LinkdinBot
+```
 
 ### 2. Instale as dependências
 
+```bash
 pip install -r requirements.txt
-
-
-### 3. Configure o perfil do navegador
-
-#### Para Chrome:
-
-1. Abra o Chrome
-2. Faça login no LinkedIn normalmente
-3. Digite `chrome://version/` na barra de endereços
-4. Copie o **Caminho do perfil** (remova o nome do perfil no final, ex: `/Default`)
-5. Abra o arquivo `config.py`
-6. Cole o caminho em `chromeProfilePath`
-7. Configure `chromeProfileName` (geralmente "Default")
-
-Exemplo:
-
-chromeProfilePath = r"C:\Users\SeuNome\AppData\Local\Google\Chrome\User Data"
-chromeProfileName = "Default"
-
-
-#### Para Firefox:
-
-1. Abra o Firefox
-2. Faça login no LinkedIn normalmente
-3. Digite `about:profiles` na barra de endereços
-4. Copie o **Diretório raiz** do perfil ativo
-5. Abra o arquivo `config.py`
-6. Cole o caminho em `firefoxProfilePath`
-
-### 4. Configure suas preferências
-
-Edite o arquivo `config.py` e ajuste:
-
-- **Localização**: onde procurar vagas
-- **Palavras-chave**: termos relacionados ao cargo desejado
-- **Nível de experiência**: júnior, pleno, sênior, etc
-- **Tipo de trabalho**: remoto, híbrido, presencial
-- **Filtros adicionais**: blacklist de empresas/títulos, etc
+```
 
 ## ▶️ Como usar
 
-Execute o bot:
+### Opção 1: Interface Gráfica (Recomendado)
 
+Execute a interface gráfica:
+
+```bash
+python gui_config.py
+```
+
+1. Configure suas preferências nas abas
+2. Clique em "Salvar e Executar Bot"
+3. Na primeira vez, faça login no LinkedIn quando o Chrome abrir
+4. O bot começará a aplicar automaticamente
+
+### Opção 2: Linha de Comando
+
+1. Edite o arquivo `config.py` com suas preferências
+2. Execute:
+
+```bash
 python linkedin.py
+```
 
-O bot irá:
-1. Abrir o navegador usando seu perfil (já logado)
-2. Verificar se está logado no LinkedIn
-3. Gerar URLs de busca baseadas em suas configurações
-4. Navegar pelas vagas encontradas
-5. Aplicar automaticamente nas vagas "Easy Apply"
-6. Salvar os resultados na pasta `data/`
+## ⚙️ Configurações Importantes
+
+### Busca de Vagas
+
+- **Localização**: Onde procurar vagas (ex: `['Brazil', 'Remote']`)
+- **Palavras-chave**: Termos relacionados ao cargo (ex: `['Python', 'Developer']`)
+- **Nível de experiência**: Júnior, Pleno, Sênior, etc
+- **Tipo de trabalho**: Full-time, Contract, etc
+- **Modalidade**: Remote, Hybrid, On-site
+
+### Comportamento do Bot
+
+```python
+maxApplications = 50  # Limite de candidaturas (0 = sem limite)
+botSpeed = 4          # Segundos entre ações (3-8 recomendado)
+headless = False      # True = executar sem abrir janela
+```
+
+### Blacklist e Whitelist
+
+```python
+blacklistCompanies = ['Empresa A', 'Empresa B']  # Empresas para ignorar
+blackListTitles = ['senior', 'sênior']           # Títulos para ignorar
+```
 
 ## 📊 Resultados
 
 Os resultados são salvos em:
 - `data/urlData.txt` - URLs de busca geradas
-- `data/Candidaturas_Aplicadas_[DATA].txt` - Log de todas as candidaturas
-
-## ⚙️ Configurações Importantes
-
-### Velocidade do Bot
-
-botSpeed = 4 # Segundos entre ações (recomendado: 3-5)
-
-
-### Limite de Candidaturas
-
-maxApplications = 50 # 0 = sem limite
-
-
-### Modo Headless
-
-headless = False # True = executar em background sem abrir janela
-
+- `Applied_Jobs_DATA_[TIMESTAMP].txt` - Log de todas as candidaturas
 
 ## 🛡️ Segurança e Boas Práticas
 
+- ✅ **Use o perfil isolado**: Não afeta seu Chrome pessoal
 - ✅ Não aplique em mais de 200 vagas por dia
 - ✅ Use velocidade moderada (3-5 segundos)
 - ✅ Revise regularmente as vagas aplicadas
 - ✅ Mantenha seu perfil e currículo atualizados
 - ✅ Use blacklist para evitar empresas indesejadas
 
+## 📁 Estrutura do Projeto
+
+```
+LinkdinBot/
+├── linkedin.py          # Script principal do bot
+├── config.py           # Configurações
+├── gui_config.py       # Interface gráfica
+├── utils.py            # Funções auxiliares
+├── constants.py        # Constantes
+├── requirements.txt    # Dependências
+├── selenium_profile/   # Perfil isolado (criado automaticamente)
+└── data/              # Dados e logs (criado automaticamente)
+```
+
 ## ❓ Solução de Problemas
 
 ### "Você não está logado no LinkedIn"
-- Certifique-se de que o perfil do navegador está configurado corretamente
-- Abra o navegador manualmente com esse perfil e verifique se está logado
-- Tente fazer logout e login novamente no LinkedIn
+- Na primeira execução, faça login quando o Chrome abrir
+- O login ficará salvo no perfil `selenium_profile/`
+- Se precisar fazer login novamente, delete a pasta `selenium_profile/`
 
 ### "Nenhum currículo encontrado"
 - Acesse seu perfil no LinkedIn
@@ -123,6 +121,19 @@ headless = False # True = executar em background sem abrir janela
 - Verifique se as palavras-chave estão corretas
 - Tente localizações mais amplas (ex: "Brazil" ao invés de cidade específica)
 - Verifique se os filtros não estão muito restritivos
+
+### Erro ao inicializar Chrome
+- Certifique-se que o Google Chrome está instalado
+- Tente deletar a pasta `selenium_profile/` e execute novamente
+
+## 🆕 O que mudou nesta versão
+
+✅ **Perfil isolado**: Não usa mais o perfil pessoal do Chrome  
+✅ **Métodos corrigidos**: Todos os métodos faltantes foram implementados  
+✅ **Tratamento de erros**: Sistema robusto de try/catch  
+✅ **GUI simplificada**: Removida aba desnecessária de configuração do Chrome  
+✅ **Estatísticas**: Resumo completo ao final da execução  
+✅ **Logs melhorados**: Mensagens mais claras e informativas  
 
 ## 📝 Licença
 

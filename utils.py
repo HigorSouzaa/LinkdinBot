@@ -28,59 +28,59 @@ from webdriver_manager.firefox import GeckoDriverManager
 def prRed(text):
     """Imprime texto em vermelho"""
     try:
-        print(f"\033[91m{text}\033[00m")
+        print(f"\033[91m{text}\033[00m", flush=True)
     except (UnicodeEncodeError, UnicodeDecodeError):
         clean_text = str(text).encode('ascii', 'ignore').decode('ascii')
-        print(f"\033[91m{clean_text}\033[00m")
+        print(f"\033[91m{clean_text}\033[00m", flush=True)
 
 
 def prGreen(text):
     """Imprime texto em verde"""
     try:
-        print(f"\033[92m{text}\033[00m")
+        print(f"\033[92m{text}\033[00m", flush=True)
     except (UnicodeEncodeError, UnicodeDecodeError):
         clean_text = str(text).encode('ascii', 'ignore').decode('ascii')
-        print(f"\033[92m{clean_text}\033[00m")
+        print(f"\033[92m{clean_text}\033[00m", flush=True)
 
 
 def prYellow(text):
     """Imprime texto em amarelo"""
     try:
-        print(f"\033[93m{text}\033[00m")
+        print(f"\033[93m{text}\033[00m", flush=True)
     except (UnicodeEncodeError, UnicodeDecodeError):
         clean_text = str(text).encode('ascii', 'ignore').decode('ascii')
-        print(f"\033[93m{clean_text}\033[00m")
+        print(f"\033[93m{clean_text}\033[00m", flush=True)
 
 
 def prBlue(text):
     """Imprime texto em azul"""
     try:
-        print(f"\033[94m{text}\033[00m")
+        print(f"\033[94m{text}\033[00m", flush=True)
     except (UnicodeEncodeError, UnicodeDecodeError):
         clean_text = str(text).encode('ascii', 'ignore').decode('ascii')
-        print(f"\033[94m{clean_text}\033[00m")
+        print(f"\033[94m{clean_text}\033[00m", flush=True)
 
 
 def prPurple(text):
     """Imprime texto em roxo"""
     try:
-        print(f"\033[95m{text}\033[00m")
+        print(f"\033[95m{text}\033[00m", flush=True)
     except (UnicodeEncodeError, UnicodeDecodeError):
         clean_text = str(text).encode('ascii', 'ignore').decode('ascii')
-        print(f"\033[95m{clean_text}\033[00m")
+        print(f"\033[95m{clean_text}\033[00m", flush=True)
 
 
 def prCyan(text):
     """Imprime texto em ciano"""
     try:
-        print(f"\033[96m{text}\033[00m")
+        print(f"\033[96m{text}\033[00m", flush=True)
     except (UnicodeEncodeError, UnicodeDecodeError):
         clean_text = str(text).encode('ascii', 'ignore').decode('ascii')
-        print(f"\033[96m{clean_text}\033[00m")
+        print(f"\033[96m{clean_text}\033[00m", flush=True)
 
 
 def chromeBrowserOptions():
-    """Retorna opções configuradas para o Chrome"""
+    """Retorna opções configuradas para o Chrome com perfil isolado"""
     import config
     
     options = webdriver.ChromeOptions()
@@ -97,18 +97,25 @@ def chromeBrowserOptions():
         options.add_argument("--headless")
         options.add_argument("--window-size=1920,1080")
     
-    # SEMPRE usar um perfil separado para o bot
-    bot_profile_path = os.path.join(os.path.expanduser("~"), ".linkedin_bot_profile")
+    # USAR PERFIL ISOLADO NA PASTA DO PROJETO
+    bot_profile_path = os.path.join(os.getcwd(), "selenium_profile")
     
     # Criar diretório se não existir
     if not os.path.exists(bot_profile_path):
         os.makedirs(bot_profile_path)
-        prGreen(f"📁 Criando perfil separado para o bot em: {bot_profile_path}")
-        prYellow("⚠️ Na primeira vez, você precisará fazer login no LinkedIn")
+        prGreen(f"📁 Criando perfil isolado do Selenium em: {bot_profile_path}")
+        prYellow("⚠️ Na primeira execução, você precisará fazer login no LinkedIn")
+        prYellow("⚠️ O login será salvo neste perfil para as próximas execuções")
     else:
-        prGreen(f"📁 Usando perfil do bot: {bot_profile_path}")
+        prGreen(f"✅ Usando perfil isolado: {bot_profile_path}")
     
     options.add_argument(f"user-data-dir={bot_profile_path}")
+    options.add_argument("--profile-directory=Default")
+    
+    # Evitar detecção de automação
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
     
     return options
 

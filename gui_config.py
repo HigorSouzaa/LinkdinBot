@@ -65,8 +65,6 @@ class LinkedInBotGUI:
         default_config = {
             "browser": "Chrome",
             "headless": False,
-            "chromeProfilePath": "",
-            "chromeProfileName": "Default",
             "location": ["Brazil"],
             "keywords": ["desenvolvedor"],
             "experienceLevels": ["Júnior"],
@@ -94,8 +92,6 @@ class LinkedInBotGUI:
             loaded_config = {
                 "browser": getattr(cfg, 'browser', 'Chrome'),
                 "headless": getattr(cfg, 'headless', False),
-                "chromeProfilePath": getattr(cfg, 'chromeProfilePath', ''),
-                "chromeProfileName": getattr(cfg, 'chromeProfileName', 'Default'),
                 "location": getattr(cfg, 'location', ["Brazil"]),
                 "keywords": getattr(cfg, 'keywords', ["desenvolvedor"]),
                 "experienceLevels": getattr(cfg, 'experienceLevels', ["Júnior"]),
@@ -142,13 +138,11 @@ class LinkedInBotGUI:
         # Criar abas
         self.tabview.add("🔍 Busca de Vagas")
         self.tabview.add("👤 Informações Pessoais")
-        self.tabview.add("🌐 Configuração do Chrome")
         self.tabview.add("⚙️ Avançado")
         
         # Preencher cada aba
         self.create_search_tab()
         self.create_personal_tab()
-        self.create_chrome_tab()
         self.create_advanced_tab()
         
         # Botões de ação
@@ -178,111 +172,6 @@ class LinkedInBotGUI:
             corner_radius=8
         )
         run_btn.pack(side="left", padx=10)
-    
-    def create_chrome_tab(self):
-        """Cria aba de configuração do Chrome"""
-        tab = self.tabview.tab("🌐 Configuração do Chrome")
-        
-        scroll_frame = ctk.CTkScrollableFrame(tab, width=850, height=420)
-        scroll_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        # Título explicativo
-        info_frame = ctk.CTkFrame(scroll_frame, fg_color="#1F538D", corner_radius=10)
-        info_frame.pack(fill="x", pady=10, padx=5)
-        
-        info_text = """
-ℹ️ Para usar o bot SEM precisar fazer login toda vez:
-
-1. Abra o Google Chrome
-2. Certifique-se que está logado no LinkedIn
-3. Digite na barra de endereços: chrome://version/
-4. Copie o "Caminho do perfil" (SEM o nome do perfil no final)
-5. Cole abaixo no campo "Caminho do Perfil"
-6. Informe o nome do perfil (geralmente é "Default")
-        """
-        
-        ctk.CTkLabel(info_frame, text=info_text, font=("Arial", 11), 
-                    justify="left", text_color="white").pack(pady=10, padx=15)
-        
-        # Caminho do perfil
-        ctk.CTkLabel(scroll_frame, text="Caminho do Perfil do Chrome:", 
-                    font=("Arial Bold", 14)).pack(anchor="w", pady=(20, 5))
-        
-        path_frame = ctk.CTkFrame(scroll_frame, fg_color="transparent")
-        path_frame.pack(fill="x", pady=5)
-        
-        self.chrome_path_entry = ctk.CTkEntry(path_frame, width=650, height=40)
-        self.chrome_path_entry.insert(0, self.config["chromeProfilePath"])
-        self.chrome_path_entry.pack(side="left", padx=5)
-        
-        browse_btn = ctk.CTkButton(
-            path_frame,
-            text="📁 Procurar",
-            command=self.browse_chrome_profile,
-            width=120,
-            height=40
-        )
-        browse_btn.pack(side="left", padx=5)
-        
-        # Nome do perfil
-        ctk.CTkLabel(scroll_frame, text="Nome do Perfil:", 
-                    font=("Arial Bold", 14)).pack(anchor="w", pady=(15, 5))
-        
-        self.chrome_profile_name_entry = ctk.CTkEntry(scroll_frame, width=300, height=40)
-        self.chrome_profile_name_entry.insert(0, self.config["chromeProfileName"])
-        self.chrome_profile_name_entry.pack(pady=5, anchor="w")
-        
-        ctk.CTkLabel(scroll_frame, text="Dica: Geralmente é 'Default', 'Profile 1', 'Profile 2', etc", 
-                    font=("Arial", 10), text_color="gray").pack(anchor="w", padx=5)
-        
-        # Botão de teste
-        test_btn = ctk.CTkButton(
-            scroll_frame,
-            text="🧪 Testar Configuração",
-            command=self.test_chrome_profile,
-            width=200,
-            height=40,
-            fg_color="#FF6F00",
-            hover_color="#E65100"
-        )
-        test_btn.pack(pady=20, anchor="w")
-        
-        # Opção pular configuração
-        skip_frame = ctk.CTkFrame(scroll_frame, fg_color="#FFA726", corner_radius=10)
-        skip_frame.pack(fill="x", pady=15, padx=5)
-        
-        skip_text = "⚠️ Caso não configure o perfil, você precisará fazer login manualmente no LinkedIn toda vez que executar o bot."
-        ctk.CTkLabel(skip_frame, text=skip_text, font=("Arial", 11), 
-                    text_color="white", wraplength=800).pack(pady=10, padx=15)
-    
-    def browse_chrome_profile(self):
-        """Abre diálogo para selecionar pasta do perfil do Chrome"""
-        folder = filedialog.askdirectory(title="Selecione a pasta do perfil do Chrome")
-        if folder:
-            self.chrome_path_entry.delete(0, "end")
-            self.chrome_path_entry.insert(0, folder)
-    
-    def test_chrome_profile(self):
-        """Testa a configuração do Chrome"""
-        profile_path = self.chrome_path_entry.get().strip()
-        profile_name = self.chrome_profile_name_entry.get().strip()
-        
-        if not profile_path:
-            messagebox.showwarning("Aviso", "Configure o caminho do perfil primeiro!")
-            return
-        
-        # Verificar se o caminho existe
-        if not os.path.exists(profile_path):
-            messagebox.showerror("Erro", "Caminho não encontrado!\n\nVerifique se você copiou corretamente o caminho do perfil.")
-            return
-        
-        # Verificar se o perfil existe
-        profile_full_path = os.path.join(profile_path, profile_name)
-        if not os.path.exists(profile_full_path):
-            messagebox.showerror("Erro", f"Perfil '{profile_name}' não encontrado!\n\nVerifique o nome do perfil.")
-            return
-        
-        messagebox.showinfo("Sucesso", "✅ Configuração do Chrome válida!\n\nO bot usará este perfil ao ser executado.")
     
     def create_search_tab(self):
         """Cria aba de busca de vagas"""
@@ -498,20 +387,27 @@ class LinkedInBotGUI:
         blacklist_companies = [c.strip() for c in self.blacklist_companies_entry.get().split(",") if c.strip()]
         blacklist_titles = [t.strip() for t in self.blacklist_titles_entry.get().split(",") if t.strip()]
         
-        chrome_path = self.chrome_path_entry.get().strip()
-        chrome_profile = self.chrome_profile_name_entry.get().strip()
-        
-        config_content = f'''# config.py - Configurações do Bot (Gerado automaticamente)
+        config_content = f'''# config.py - Configurações do Bot (Gerado automaticamente pela GUI)
 
+# ============================================
+# CONFIGURAÇÕES DO NAVEGADOR
+# ============================================
 browser = "Chrome"
 headless = False
 
-chromeProfilePath = r"{chrome_path}"
-chromeProfileName = "{chrome_profile}"
-firefoxProfilePath = r""
+# Nota: O bot usa perfil isolado na pasta "selenium_profile"
+# Na primeira execução, faça login no LinkedIn
+# O login ficará salvo automaticamente
 
+# ============================================
+# BUSCA DE VAGAS
+# ============================================
 location = {locations}
 keywords = {keywords}
+
+# ============================================
+# FILTROS DE BUSCA
+# ============================================
 experienceLevels = {exp_levels}
 datePosted = ["{self.date_var.get()}"]
 jobType = {job_types}
@@ -519,21 +415,32 @@ remote = {remote_types}
 salary = [""]
 sort = ["Recent"]
 
+# ============================================
+# BLACKLIST E WHITELIST
+# ============================================
 blacklistCompanies = {blacklist_companies}
 blackListTitles = {blacklist_titles}
 onlyApplyCompanies = []
 onlyApplyTitles = []
 
+# ============================================
+# COMPORTAMENTO DO BOT
+# ============================================
 followCompanies = {self.follow_var.get()}
 preferredCv = 1
 saveBeforeApply = False
 maxApplications = {int(self.max_apps_entry.get())}
 
+# ============================================
+# CONFIGURAÇÕES TÉCNICAS
+# ============================================
 displayWarnings = True
 outputFileType = ".txt"
-
 botSpeed = {int(self.speed_slider.get())}
 
+# ============================================
+# INFORMAÇÕES PESSOAIS (para preenchimento automático)
+# ============================================
 personalInfo = {{
     "yearsOfExperience": "{self.exp_years_entry.get()}",
     "salaryExpectation": "{self.salary_entry.get()}",
@@ -551,6 +458,9 @@ personalInfo = {{
     "additionalNotes": ""
 }}
 
+# ============================================
+# PREENCHIMENTO AUTOMÁTICO DE FORMULÁRIOS
+# ============================================
 autoFillEnabled = True
 autoSelectYes = True
 autoSelectFirstOption = True
@@ -647,47 +557,95 @@ autoSelectFirstOption = True
         try:
             self.log_text.insert("end", "🚀 Iniciando LinkedIn Easy Apply Bot...\n\n")
             self.log_text.see("end")
+            exec_window.update()  # Forçar atualização da GUI
             
-            # Executar linkedin.py
+            # Executar linkedin.py com encoding UTF-8
+            import locale
+            import subprocess
+            
+            # Configurar encoding
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+            env['PYTHONUNBUFFERED'] = '1'  # Desabilitar buffer para output imediato
+            
             self.bot_process = subprocess.Popen(
-                [sys.executable, "linkedin.py"],
+                [sys.executable, "-u", "linkedin.py"],  # -u para unbuffered
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
-                bufsize=1,
-                universal_newlines=True
+                encoding='utf-8',
+                errors='replace',
+                bufsize=0,  # Sem buffer
+                universal_newlines=True,
+                env=env
             )
             
             # Ler saída em tempo real
             applied_count = 0
             error_count = 0
             
-            for line in iter(self.bot_process.stdout.readline, ''):
+            while True:
                 if not self.is_running:
                     break
                 
-                self.log_text.insert("end", line)
-                self.log_text.see("end")
+                line = self.bot_process.stdout.readline()
+                
+                if not line:
+                    # Processo terminou
+                    break
+                
+                try:
+                    # Remover códigos de cor ANSI
+                    import re
+                    clean_line = re.sub(r'\x1b\[[0-9;]*m', '', line)
+                    
+                    self.log_text.insert("end", clean_line)
+                    self.log_text.see("end")
+                    exec_window.update()  # Atualizar GUI em tempo real
+                except Exception as e:
+                    # Se falhar ao inserir, tenta limpar caracteres especiais
+                    try:
+                        clean_line = line.encode('ascii', 'ignore').decode('ascii')
+                        self.log_text.insert("end", clean_line + "\n")
+                        self.log_text.see("end")
+                        exec_window.update()
+                    except:
+                        pass
                 
                 # Contar aplicações e erros
-                if "Candidatura enviada com sucesso" in line or "🥳" in line:
+                if "Candidatura enviada" in line or "aplicado" in line.lower():
                     applied_count += 1
-                elif "⚠️" in line or "❌" in line:
+                elif "❌" in line or "erro" in line.lower():
                     error_count += 1
                 
-                # Atualizar estatísticas
-                self.stats_label.configure(text=f"Vagas aplicadas: {applied_count} | Erros: {error_count}")
+                # Atualizar estatísticas em tempo real
+                try:
+                    self.stats_label.configure(text=f"Vagas aplicadas: {applied_count} | Erros: {error_count}")
+                    exec_window.update()
+                except:
+                    pass
             
             self.bot_process.wait()
             
             if self.is_running:
-                self.log_text.insert("end", "\n\n✅ Bot finalizado!\n")
+                self.log_text.insert("end", "\n✅ Bot finalizado!\n")
                 self.log_text.insert("end", f"📊 Total de candidaturas: {applied_count}\n")
+                self.log_text.see("end")
                 self.status_label.configure(text="✅ Bot Finalizado", text_color="#4CAF50")
                 self.cancel_btn.configure(text="✔️ Fechar", fg_color="#4CAF50")
+                exec_window.update()
             
         except Exception as e:
-            self.log_text.insert("end", f"\n❌ Erro: {str(e)}\n")
+            error_msg = f"\n❌ Erro: {str(e)}\n"
+            try:
+                self.log_text.insert("end", error_msg)
+                self.log_text.see("end")
+                exec_window.update()
+            except:
+                # Se falhar, tenta versão ASCII
+                clean_msg = error_msg.encode('ascii', 'ignore').decode('ascii')
+                self.log_text.insert("end", clean_msg)
+                exec_window.update()
             self.status_label.configure(text="❌ Erro ao executar", text_color="#F44336")
     
     def stop_bot(self, exec_window):
